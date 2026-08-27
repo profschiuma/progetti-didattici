@@ -1,0 +1,2248 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DoodlePop - AI Motion & Audio Puppeteer</title>
+  
+  <!-- MediaPipe Pose -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --card: #334155;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-active: #06b6d4;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --success-hover: #059669;
+      --stickman: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      touch-action: manipulation;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      background-color: var(--panel);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .app-icon {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand h1 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fde047, #f97316);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      background: var(--accent);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      -webkit-text-fill-color: initial;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .lang-select {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      height: 36px;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sidebar {
+      width: 380px;
+      background-color: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 12px;
+      gap: 10px;
+      z-index: 5;
+    }
+
+    .step-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .step-title {
+      font-weight: 600;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #e0e7ff;
+    }
+
+    .step-num {
+      background: var(--accent);
+      color: #fff;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+
+    /* Base Button Styling Uniform across all states */
+    label.btn, button.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background-color: var(--accent);
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      text-align: center;
+      user-select: none;
+      min-height: 36px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    label.btn:hover, button.btn:hover {
+      background-color: var(--accent-hover);
+    }
+
+    label.btn:active, button.btn:active {
+      transform: translateY(1px);
+    }
+
+    button.btn-primary {
+      background-color: var(--accent);
+    }
+    button.btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    button.btn-secondary {
+      background-color: #475569;
+    }
+    button.btn-secondary:hover {
+      background-color: #64748b;
+    }
+
+    button.btn-danger {
+      background-color: var(--danger) !important;
+    }
+    button.btn-danger:hover {
+      background-color: var(--danger-hover) !important;
+    }
+
+    button.btn-success {
+      background-color: var(--success) !important;
+    }
+    button.btn-success:hover {
+      background-color: var(--success-hover) !important;
+    }
+
+    button:disabled, label.disabled, select:disabled {
+      opacity: 0.45;
+      cursor: not-allowed !important;
+      pointer-events: none;
+      transform: none !important;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .control-row label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      accent-color: var(--accent-active);
+      cursor: pointer;
+    }
+
+    .parts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      max-height: 140px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .part-btn {
+      padding: 6px 8px;
+      font-size: 0.72rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.15s ease;
+    }
+
+    .part-btn.active {
+      border-color: var(--accent-active);
+      background: rgba(6, 182, 212, 0.2);
+    }
+
+    .part-btn.cut-ok {
+      border-left: 3px solid var(--success);
+    }
+
+    .mode-switch {
+      display: flex;
+      background: rgba(0,0,0,0.25);
+      padding: 2px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .mode-tab {
+      flex: 1;
+      padding: 6px;
+      text-align: center;
+      font-size: 0.72rem;
+      cursor: pointer;
+      border-radius: 6px;
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+    }
+
+    .mode-tab.active {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .viewport {
+      flex: 1;
+      position: relative;
+      background-color: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    .viewport.tracking-active {
+      cursor: grab;
+    }
+    .viewport.tracking-active:active {
+      cursor: grabbing;
+    }
+
+    #mainCanvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      background: repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%) 50% / 20px 20px;
+    }
+
+    .webcam-overlay {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 150px;
+      height: 110px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--accent);
+      background: #000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .webcam-overlay video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .rec-indicator {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(239, 68, 68, 0.9);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #fff;
+      animation: pulse 1.5s infinite;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .instructions-banner {
+      position: absolute;
+      bottom: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #f3f4f6;
+      border: 1px solid var(--border);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .mic-meter {
+      height: 5px;
+      background: #1e293b;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 3px;
+    }
+
+    .mic-meter-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-active);
+      transition: width 0.05s linear;
+    }
+
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.74rem;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .toggle-label input {
+      accent-color: var(--accent-active);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    footer {
+      background: #090d16;
+      border-top: 1px solid var(--border);
+      padding: 6px 20px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      z-index: 10;
+    }
+    footer b {
+      color: #e0e7ff;
+    }
+
+    /* Modal Guida */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-window {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 680px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+      color: var(--text);
+    }
+
+    .modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h2 {
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .btn-close:hover {
+      color: #fff;
+    }
+
+    .modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .guide-box {
+      background: rgba(0,0,0,0.25);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .guide-box h3 {
+      font-size: 0.9rem;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+
+    .guide-box ul {
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #infograficaContainer {
+      border: 2px dashed #475569;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      background: rgba(15, 23, 42, 0.4);
+      color: var(--text-muted);
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    #infograficaContainer img {
+      max-width: 100%;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="app-icon">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
+          <path d="M10 20L15 44H33L38 20H10Z" fill="#ef4444"/>
+          <path d="M16 20L19 44H23L21 20H16Z" fill="#ffffff"/>
+          <path d="M27 20L25 44H29L32 20H27Z" fill="#ffffff"/>
+          <path d="M10 20C10 20 12 18 24 18C36 18 38 20 38 20H10Z" fill="#b91c1c"/>
+          <circle cx="16" cy="15" r="5" fill="#fde047"/>
+          <circle cx="24" cy="11" r="6" fill="#facc15"/>
+          <circle cx="32" cy="15" r="5" fill="#fde047"/>
+          <circle cx="19" cy="8" r="4.5" fill="#fef08a"/>
+          <circle cx="29" cy="8" r="4.5" fill="#fef08a"/>
+          <circle cx="24" cy="5" r="4" fill="#ffffff"/>
+          <path d="M6 10L8 12M42 10L40 12M24 0V2" stroke="#fde047" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1>DoodlePop</h1>
+      <span class="badge" data-i18n="badgeTitle">Puppeteer Studio</span>
+    </div>
+    <div class="header-actions">
+      <select id="langSelect" class="lang-select">
+        <option value="it">🇮🇹 Italiano</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="es">🇪🇸 Español</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="de">🇩🇪 Deutsch</option>
+      </select>
+      <button id="btnOpenGuide" class="btn btn-secondary" data-i18n="btnGuide">💡 Come si usa?</button>
+      <button id="btnToggleTracking" class="btn btn-primary" disabled data-i18n="btnStartTrack">▶️ Avvia Tracking Webcam</button>
+      <button id="btnRecord" class="btn btn-danger" disabled data-i18n="btnRecStart">⏺️ Registra Video MP4</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="sidebar">
+      
+      <!-- Step 1: Caricamento -->
+      <div class="step-box">
+        <div class="step-title"><span class="step-num">1</span> <span data-i18n="step1Title">Sfondo & Personaggio</span></div>
+        <div style="display: flex; gap: 6px;">
+          <label class="btn btn-secondary" id="lblBgUpload" style="flex:1;">
+            <span data-i18n="btnBgUpload">🖼️ Sfondo</span>
+            <input type="file" id="bgUpload" accept="image/*">
+          </label>
+          <label class="btn btn-secondary" id="lblCharUpload" style="flex:1;">
+            <span data-i18n="btnCharUpload">🧍 Personaggio</span>
+            <input type="file" id="charUpload" accept="image/*">
+          </label>
+        </div>
+
+        <div class="control-row">
+          <label><span data-i18n="lblMatting">🪄 Tolleranza Scontorno Foglio</span><span id="threshVal">35</span></label>
+          <input type="range" id="thresholdSlider" min="0" max="100" value="35">
+        </div>
+      </div>
+
+      <!-- Step 2: Rigging -->
+      <div class="step-box">
+        <div class="step-title"><span class="step-num">2</span> <span data-i18n="step2Title">Setup Rigging</span></div>
+
+        <div class="mode-switch">
+          <div class="mode-tab active" id="tabStickman" onclick="setSetupTab('STICKMAN')" data-i18n="tabStickman">🦴 Stickman</div>
+          <div class="mode-tab" id="tabLasso" onclick="setSetupTab('LASSO')" data-i18n="tabLasso">✂️ Sagoma Lazo</div>
+        </div>
+
+        <div id="stickmanControls" style="display: flex; flex-direction: column; gap: 6px;">
+          <p style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="descStickman">
+            Trascina i nodi dello Stickman sul personaggio: il nodo Collo alla base della testa unirà testa e tronco.
+          </p>
+          <div style="display: flex; gap: 6px;">
+            <button id="btnResetStickman" class="btn btn-secondary" style="flex: 1; font-size: 0.75rem;" data-i18n="btnResetStick">Reset Stickman</button>
+            <button id="btnAutoCutStickman" class="btn btn-secondary" style="flex: 1; font-size: 0.75rem;" data-i18n="btnRecalcParts">Ricalcola Parti</button>
+          </div>
+        </div>
+
+        <div id="lassoControls" style="display: none; flex-direction: column; gap: 6px;">
+          <p style="font-size: 0.72rem; color: var(--text-muted);" data-i18n="descLasso">
+            Seleziona la parte e disegna la sagoma a mano libera. Al rilascio viene salvata.
+          </p>
+          <div class="parts-grid" id="partsGrid"></div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <button id="btnClearCurrentLasso" class="btn btn-secondary" style="flex:1; font-size: 0.72rem;" data-i18n="btnClearLasso">Cancella Sagoma</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Modalità Tracking & Voce -->
+      <div class="step-box">
+        <div class="step-title"><span class="step-num">3</span> <span data-i18n="step3Title">Specchio & Voce</span></div>
+        
+        <div class="mode-switch">
+          <div class="mode-tab active" id="modeMirror" onclick="setMirrorMode(true)" data-i18n="tabMirror">🪞 Specchio Bambini (1:1)</div>
+          <div class="mode-tab" id="modeAvatar" onclick="setMirrorMode(false)" data-i18n="tabAvatar">🎭 Marionetta Reale</div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+          <button id="btnToggleMic" class="btn btn-secondary" style="font-size: 0.75rem;" data-i18n="btnMicEnable">🎙️ Attiva Microfono</button>
+          <label class="toggle-label">
+            <input type="checkbox" id="enableMouthDraw" checked>
+            <span data-i18n="lblDynamicMouth">Bocca Dinamica</span>
+          </label>
+        </div>
+        <div class="mic-meter">
+          <div class="mic-meter-fill" id="micLevel"></div>
+        </div>
+      </div>
+
+      <!-- Live Controls & Stabilizzatore Movimento -->
+      <div class="step-box">
+        <div class="step-title">⚙️ <span data-i18n="liveTitle">Regolazioni Live</span></div>
+        <div class="control-row">
+          <label><span data-i18n="lblCharScale">Scala Personaggio</span><span id="scaleVal">1.0x</span></label>
+          <input type="range" id="charScale" min="0.3" max="2.2" step="0.05" value="1.0">
+        </div>
+        <div class="control-row">
+          <label><span data-i18n="lblSmooth">Stabilizzatore Tracking (Anti-Tremolio)</span><span id="smoothVal">70%</span></label>
+          <input type="range" id="smoothSlider" min="0" max="95" step="5" value="70">
+        </div>
+        <div class="control-row">
+          <label><span data-i18n="lblHeadTilt">Sensibilità Inclinazione Testa</span><span id="headSensVal">1.0x</span></label>
+          <input type="range" id="headSens" min="0.3" max="2.0" step="0.1" value="1.0">
+        </div>
+        <div class="control-row" style="margin-top: 4px;">
+          <label><span data-i18n="lblVideoFormat">Formato Video Download</span></label>
+          <select id="videoFormatSelect" class="lang-select" style="width: 100%;">
+            <option value="mp4">📹 MP4 (.mp4)</option>
+            <option value="webm">🌐 WebM (.webm)</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <button id="btnResetPosition" class="btn btn-secondary" style="flex: 1; font-size: 0.72rem;" data-i18n="btnResetPos">🎯 Ricentra Personaggio</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Viewport -->
+    <div class="viewport" id="viewportArea">
+      <div class="rec-indicator" id="recBadge">🔴 REC <span id="recTimer">00:00</span></div>
+      
+      <div class="webcam-overlay">
+        <video id="webcamVideo" playsinline autoplay muted></video>
+      </div>
+
+      <canvas id="mainCanvas" width="1280" height="720"></canvas>
+
+      <div class="instructions-banner" id="instructionsBanner">
+        Carica il personaggio per iniziare.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Made with ❤️ by <b>Giuseppe Schiuma</b>
+  </footer>
+
+  <!-- MODAL GUIDA -->
+  <div class="modal-backdrop" id="guideModal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h2 data-i18n="modalTitle">💡 Come si usa DoodlePop</h2>
+        <button class="btn-close" id="btnCloseGuide">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="guide-box">
+          <h3 data-i18n="guideSection1Title">🎨 1. Come disegnare il personaggio (Consigli per il bambino)</h3>
+          <ul>
+            <li data-i18n="guideSection1P1"><b>Posa a Stella / T-Pose:</b> Disegna il personaggio con le braccia aperte di lato o verso l'alto e le gambe ben separate, in modo che gli arti non tocchino il tronco.</li>
+            <li data-i18n="guideSection1P2"><b>Collo Visibile:</b> Lascia un po' di spazio tra la testa e il corpo con il collo ben disegnato.</li>
+            <li data-i18n="guideSection1P3"><b>Foglio Pulito:</b> Usa un foglio completamente bianco senza ombre o sfondi colorati attorno al personaggio.</li>
+          </ul>
+        </div>
+
+        <div class="guide-box">
+          <h3 data-i18n="guideSection2Title">🦴 2. Come impostare lo scheletro (Rigging)</h3>
+          <ul>
+            <li data-i18n="guideSection2P1">Carica prima l'immagine di sfondo e poi la foto del personaggio.</li>
+            <li data-i18n="guideSection2P2">Nella vista <b>Stickman</b>, trascina i pallini colorati sulle articolazioni del personaggio (spalle, gomiti, polsi, bacino, ginocchia e caviglie).</li>
+            <li data-i18n="guideSection2P3">Posiziona il nodo <b>Collo</b> esattamente alla base della testa/colletto della maglia per evitare fessure.</li>
+          </ul>
+        </div>
+
+        <div class="guide-box">
+          <h3 data-i18n="guideSection3Title">🎭 3. Animazione, Movimento nello Spazio e Voce</h3>
+          <ul>
+            <li data-i18n="guideSection3P1">Clicca <b>▶️ Avvia Tracking Webcam</b> e mettiti davanti alla telecamera a mezzobusto o figura intera.</li>
+            <li data-i18n="guideSection3P2"><b>Muovi il Personaggio sulla Scena:</b> Trascina con il <b>dito su iPad</b>, con il <b>mouse</b> o usa le <b>frecce della tastiera</b> da PC per spostare il personaggio nello sfondo mentre recita!</li>
+            <li data-i18n="guideSection3P3">Attiva il <b>🎙️ Microfono</b> per far muovere la bocca e registrare la voce in modo chiaro e naturale.</li>
+            <li data-i18n="guideSection3P4">Clicca <b>⏺️ Registra Video MP4</b> per salvare il filmato dell'animazione.</li>
+          </ul>
+        </div>
+
+        <div class="guide-box">
+          <h3 data-i18n="guideInfographicTitle">🖼️ Infografica Illustrata</h3>
+          <div id="infograficaContainer">
+            <p data-i18n="infographicPlaceholder">Spazio riservato all'infografica personalizzata.</p>
+            <label class="btn btn-secondary" style="font-size: 0.75rem; margin-top: 4px;">
+              <span data-i18n="btnUploadInfographic">📁 Carica immagine infografica (PNG/JPG)</span>
+              <input type="file" id="infograficaUpload" accept="image/*">
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       0. SISTEMA DI TRADUZIONE MULTILINGUA (i18n)
+       ========================================================================== */
+    const I18N_DICTIONARY = {
+      it: {
+        badgeTitle: "Puppeteer Studio",
+        btnGuide: "💡 Come si usa?",
+        btnStartTrack: "▶️ Avvia Tracking Webcam",
+        btnStopTrack: "⏹️ Arresta Tracking",
+        btnRecStart: "⏺️ Registra Video MP4",
+        btnRecStop: "⏹️ Ferma & Salva Video",
+        btnResetPos: "🎯 Ricentra Personaggio",
+        step1Title: "Sfondo & Personaggio",
+        btnBgUpload: "🖼️ Sfondo",
+        btnCharUpload: "🧍 Personaggio",
+        lblMatting: "🪄 Tolleranza Scontorno Foglio",
+        step2Title: "Setup Rigging",
+        tabStickman: "🦴 Stickman",
+        tabLasso: "✂️ Sagoma Lazo",
+        descStickman: "Trascina i nodi dello Stickman sul personaggio: il nodo Collo alla base della testa unirà testa e tronco.",
+        btnResetStick: "Reset Stickman",
+        btnRecalcParts: "Ricalcola Parti",
+        descLasso: "Seleziona la parte e disegna la sagoma a mano libera. Al rilascio viene salvata.",
+        btnClearLasso: "Cancella Sagoma",
+        step3Title: "Specchio & Voce",
+        tabMirror: "🪞 Specchio Bambini (1:1)",
+        tabAvatar: "🎭 Marionetta Reale",
+        descMirror: "Modalità Specchio: muovendo il tuo braccio a destra, risponde il braccio sul lato destro dello schermo.",
+        descAvatar: "Modalità Marionetta Reale: il braccio destro dell'utente muove il braccio anatomico destro del pupazzo.",
+        btnMicEnable: "🎙️ Attiva Microfono",
+        btnMicDisable: "🎙️ Disattiva Microfono",
+        lblDynamicMouth: "Bocca Dinamica",
+        liveTitle: "Regolazioni Live",
+        lblCharScale: "Scala Personaggio",
+        lblSmooth: "Stabilizzatore Tracking (Anti-Tremolio)",
+        lblHeadTilt: "Sensibilità Inclinazione Testa",
+        lblVideoFormat: "Formato Video Download",
+        promptLoadChar: "Carica il personaggio per iniziare.",
+        promptTrackingActive: "🎭 Trascina con tocco/mouse o usa le frecce per muovere il pupazzo sullo sfondo!",
+        promptRecordingNotice: "🔴 Registrazione attiva: ferma prima la registrazione per arrestare il tracking.",
+        promptAlignStickman: "🦴 Allinea i nodi dello Stickman al personaggio (Collo posizionato sul colletto della maglia).",
+        promptDrawLasso: "✂️ Disegna la sagoma di: [{part}]. Al rilascio viene salvata.",
+        modalTitle: "💡 Come si usa DoodlePop",
+        guideSection1Title: "🎨 1. Come disegnare il personaggio (Consigli per il bambino)",
+        guideSection1P1: "<b>Posa a Stella / T-Pose:</b> Disegna il personaggio con le braccia aperte di lato o verso l'alto e le gambe ben separate, in modo che gli arti non tocchino il tronco.",
+        guideSection1P2: "<b>Collo Visibile:</b> Lascia un po' di spazio tra la testa e il corpo con il collo ben disegnato.",
+        guideSection1P3: "<b>Foglio Pulito:</b> Usa un foglio completamente bianco senza ombre o sfondi colorati attorno al personaggio.",
+        guideSection2Title: "🦴 2. Come impostare lo scheletro (Rigging)",
+        guideSection2P1: "Carica prima l'immagine di sfondo e poi la foto del personaggio.",
+        guideSection2P2: "Nella vista <b>Stickman</b>, trascina i pallini colorati sulle articolazioni del personaggio (spalle, gomiti, polsi, bacino, ginocchia e caviglie).",
+        guideSection2P3: "Posiziona il nodo <b>Collo</b> esattamente alla base della testa/colletto della maglia per evitare fessure.",
+        guideSection3Title: "🎭 3. Animazione, Movimento nello Spazio e Voce",
+        guideSection3P1: "Clicca <b>▶️ Avvia Tracking Webcam</b> e mettiti davanti alla telecamera a mezzobusto o figura intera.",
+        guideSection3P2: "<b>Muovi il Personaggio sulla Scena:</b> Trascina con il <b>dito su iPad</b>, con il <b>mouse</b> o usa le <b>frecce della tastiera</b> da PC per spostare il personaggio nello sfondo mentre recita!",
+        guideSection3P3: "Attiva il <b>🎙️ Microfono</b> per far muovere la bocca e registrare la voce in modo chiaro e naturale.",
+        guideSection3P4: "Clicca <b>⏺️ Registra Video MP4</b> per salvare il filmato dell'animazione.",
+        guideInfographicTitle: "🖼️ Infografica Illustrata",
+        infographicPlaceholder: "Spazio riservato all'infografica personalizzata.",
+        btnUploadInfographic: "📁 Carica immagine infografica (PNG/JPG)",
+        partsLabels: {
+          tronco: "Tronco", testa: "Testa (con Collo)",
+          braccio_sx: "Braccio Schermo SX", avambraccio_sx: "Avambraccio Schermo SX",
+          braccio_dx: "Braccio Schermo DX", avambraccio_dx: "Avambraccio Schermo DX",
+          coscia_sx: "Coscia Schermo SX", polpaccio_sx: "Gamba Schermo SX",
+          coscia_dx: "Coscia Schermo DX", polpaccio_dx: "Gamba Schermo DX"
+        }
+      },
+      en: {
+        badgeTitle: "Puppeteer Studio",
+        btnGuide: "💡 How to use?",
+        btnStartTrack: "▶️ Start Webcam Tracking",
+        btnStopTrack: "⏹️ Stop Tracking",
+        btnRecStart: "⏺️ Record MP4 Video",
+        btnRecStop: "⏹️ Stop & Save Video",
+        btnResetPos: "🎯 Center Character",
+        step1Title: "Background & Character",
+        btnBgUpload: "🖼️ Background",
+        btnCharUpload: "🧍 Character",
+        lblMatting: "🪄 White Paper Transparency Threshold",
+        step2Title: "Rigging Setup",
+        tabStickman: "🦴 Stickman",
+        tabLasso: "✂️ Freehand Lasso",
+        descStickman: "Drag the Stickman nodes onto the character: place the Neck node at the collar line to lock head and body seamlessly.",
+        btnResetStick: "Reset Stickman",
+        btnRecalcParts: "Recalculate Parts",
+        descLasso: "Select a part and draw its outline freely. It saves immediately when released.",
+        btnClearLasso: "Clear Outline",
+        step3Title: "Mirror & Voice",
+        tabMirror: "🪞 Child Mirror (1:1)",
+        tabAvatar: "🎭 Real Puppet",
+        descMirror: "Mirror Mode: moving your right arm moves the arm on the right side of the screen.",
+        descAvatar: "Real Puppet Mode: user's right arm moves the puppet's anatomical right arm.",
+        btnMicEnable: "🎙️ Enable Microphone",
+        btnMicDisable: "🎙️ Disable Microphone",
+        lblDynamicMouth: "Dynamic Mouth",
+        liveTitle: "Live Controls",
+        lblCharScale: "Character Scale",
+        lblSmooth: "Tracking Stabilizer (Anti-Jitter)",
+        lblHeadTilt: "Head Tilt Sensitivity",
+        lblVideoFormat: "Download Video Format",
+        promptLoadChar: "Upload the character to begin.",
+        promptTrackingActive: "🎭 Drag with touch/mouse or use arrow keys to move the puppet around the scene!",
+        promptRecordingNotice: "🔴 Recording active: stop recording first before stopping tracking.",
+        promptAlignStickman: "🦴 Align the Stickman nodes to the character (place Neck at collar line).",
+        promptDrawLasso: "✂️ Draw the outline for: [{part}]. Saves upon release.",
+        modalTitle: "💡 How to use DoodlePop",
+        guideSection1Title: "🎨 1. Drawing the Character (Tips for Kids)",
+        guideSection1P1: "<b>Star / T-Pose:</b> Draw the character with arms outstretched sideways/upwards and legs apart so limbs do not touch the torso.",
+        guideSection1P2: "<b>Visible Neck:</b> Leave a clear visible neck between the head and the shirt collar.",
+        guideSection1P3: "<b>Clean Paper:</b> Draw on clean white paper with good lighting and no background clutter.",
+        guideSection2Title: "🦴 2. Setting up the Skeleton (Rigging)",
+        guideSection2P1: "Upload your background image first, then upload your character photo.",
+        guideSection2P2: "In <b>Stickman</b> view, drag the joints over shoulders, elbows, wrists, hips, knees, and ankles.",
+        guideSection2P3: "Align the <b>Neck</b> node at the shirt collar to guarantee zero gap between head and body.",
+        guideSection3Title: "🎭 3. Animation, Movement & Recording",
+        guideSection3P1: "Click <b>▶️ Start Webcam Tracking</b> and stand in front of your camera.",
+        guideSection3P2: "<b>Move the Puppet on Scene:</b> Touch & drag with your <b>finger on iPad</b>, drag with your <b>mouse</b>, or use <b>Arrow keys</b> on PC to walk around the background!",
+        guideSection3P3: "Turn on the <b>🎙️ Microphone</b> to make the character's mouth open and record your natural voice clearly.",
+        guideSection3P4: "Click <b>⏺️ Record MP4 Video</b> to save your animation.",
+        guideInfographicTitle: "🖼️ Illustrated Infographic",
+        infographicPlaceholder: "Space reserved for custom infographic image.",
+        btnUploadInfographic: "📁 Upload infographic image (PNG/JPG)",
+        partsLabels: {
+          tronco: "Torso", testa: "Head (with Neck)",
+          braccio_sx: "Screen-Left Arm", avambraccio_sx: "Screen-Left Forearm",
+          braccio_dx: "Screen-Right Arm", avambraccio_dx: "Screen-Right Forearm",
+          coscia_sx: "Screen-Left Thigh", polpaccio_sx: "Screen-Left Shin",
+          coscia_dx: "Screen-Right Thigh", polpaccio_dx: "Screen-Right Shin"
+        }
+      },
+      es: {
+        badgeTitle: "Estudio de Títeres",
+        btnGuide: "💡 ¿Cómo se usa?",
+        btnStartTrack: "▶️ Iniciar Seguimiento",
+        btnStopTrack: "⏹️ Detener Seguimiento",
+        btnRecStart: "⏺️ Grabar Video MP4",
+        btnRecStop: "⏹️ Parar y Guardar",
+        btnResetPos: "🎯 Centrar Personaje",
+        step1Title: "Fondo y Personaje",
+        btnBgUpload: "🖼️ Fondo",
+        btnCharUpload: "🧍 Personaje",
+        lblMatting: "🪄 Tolerancia Fondo Blanco",
+        step2Title: "Ajuste de Rigging",
+        tabStickman: "🦴 Esqueleto",
+        tabLasso: "✂️ Lazo a mano alzada",
+        descStickman: "Arrastra los nodos del esqueleto sobre el personaje: el nodo Cuello en el cuello de la camisa unirá cabeza y torso.",
+        btnResetStick: "Reiniciar Esqueleto",
+        btnRecalcParts: "Recalcular Partes",
+        descLasso: "Selecciona la parte y dibuja el contorno. Se guarda al soltar el ratón.",
+        btnClearLasso: "Borrar Contorno",
+        step3Title: "Espejo y Voz",
+        tabMirror: "🪞 Espejo Infantil (1:1)",
+        tabAvatar: "🎭 Títere Real",
+        descMirror: "Modo Espejo: al mover tu brazo hacia la derecha, responde el brazo derecho en la pantalla.",
+        descAvatar: "Modo Títere Real: tu brazo derecho mueve el brazo anatómico derecho del personaje.",
+        btnMicEnable: "🎙️ Activar Micrófono",
+        btnMicDisable: "🎙️ Desactivar Micrófono",
+        lblDynamicMouth: "Boca Dinámica",
+        liveTitle: "Ajustes en Vivo",
+        lblCharScale: "Escala del Personaje",
+        lblSmooth: "Estabilizador de Movimiento",
+        lblHeadTilt: "Sensibilidad Inclinación Cabeza",
+        lblVideoFormat: "Formato de Video",
+        promptLoadChar: "Carga el personaje para comenzar.",
+        promptTrackingActive: "🎭 ¡Arrastra con el dedo/ratón o usa las flechas para mover el personaje!",
+        promptRecordingNotice: "🔴 Grabación activa: detén primero la grabación para parar el seguimiento.",
+        promptAlignStickman: "🦴 Alinea los nodos con las articulaciones del personaje.",
+        promptDrawLasso: "✂️ Dibuja el contorno de: [{part}].",
+        modalTitle: "💡 Cómo usar DoodlePop",
+        guideSection1Title: "🎨 1. Cómo dibujar el personaje (Consejos)",
+        guideSection1P1: "<b>Pose en Estrella / T-Pose:</b> Dibuja con brazos y piernas bien separados del cuerpo.",
+        guideSection1P2: "<b>Cuello Visible:</b> Deja el cuello visible entre la cabeza y la ropa.",
+        guideSection1P3: "<b>Papel Blanco:</b> Usa papel blanco sin sombras ni garabatos de fondo.",
+        guideSection2Title: "🦴 2. Configurar el Esqueleto",
+        guideSection2P1: "Carga primero el fondo y luego la foto del personaje.",
+        guideSection2P2: "Coloca los puntos en hombros, codos, muñecas, caderas y rodillas.",
+        guideSection2P3: "Alinea el cuello para unir cabeza y cuerpo sin huecos.",
+        guideSection3Title: "🎭 3. Animación, Movimiento y Grabación",
+        guideSection3P1: "Inicia el seguimiento de la cámara web.",
+        guideSection3P2: "<b>Mueve el Personaje:</b> ¡Arrastra con el <b>dedo en iPad</b> o usa las <b>flechas del teclado</b> para caminar por el escenario!",
+        guideSection3P3: "Usa el micrófono para abrir la boca y grabar tu voz clara.",
+        guideSection3P4: "Graba y descarga tu video animado.",
+        guideInfographicTitle: "🖼️ Infografía Ilustrada",
+        infographicPlaceholder: "Espacio reservado para tu infografía personalizada.",
+        btnUploadInfographic: "📁 Cargar imagen de infografía",
+        partsLabels: {
+          tronco: "Torso", testa: "Cabeza (con Cuello)",
+          braccio_sx: "Brazo Pantalla Izq", avambraccio_sx: "Antebrazo Pantalla Izq",
+          braccio_dx: "Brazo Pantalla Der", avambraccio_dx: "Antebrazo Pantalla Der",
+          coscia_sx: "Muslo Pantalla Izq", polpaccio_sx: "Pierna Pantalla Izq",
+          coscia_dx: "Muslo Pantalla Der", polpaccio_dx: "Pierna Pantalla Der"
+        }
+      },
+      fr: {
+        badgeTitle: "Studio Marionnette",
+        btnGuide: "💡 Guide d'utilisation",
+        btnStartTrack: "▶️ Démarrer Webcam",
+        btnStopTrack: "⏹️ Arrêter",
+        btnRecStart: "⏺️ Enregistrer Vidéo MP4",
+        btnRecStop: "⏹️ Sauvegarder",
+        btnResetPos: "🎯 Recentrer Personnage",
+        step1Title: "Arrière-plan & Personnage",
+        btnBgUpload: "🖼️ Décor",
+        btnCharUpload: "🧍 Personnage",
+        lblMatting: "🪄 Tolérance Détourage Papier",
+        step2Title: "Configuration Squelette",
+        tabStickman: "🦴 Squelette",
+        tabLasso: "✂️ Découpe Lasso",
+        descStickman: "Ajustez les points sur les articulations du personnage pour lier la tête et le corps.",
+        btnResetStick: "Réinitialiser",
+        btnRecalcParts: "Recalculer",
+        descLasso: "Sélectionnez une partie et tracez son contour.",
+        btnClearLasso: "Effacer Contour",
+        step3Title: "Miroir & Voix",
+        tabMirror: "🪞 Miroir Enfant (1:1)",
+        tabAvatar: "🎭 Marionnette Réelle",
+        descMirror: "Mode Miroir : bouger le bras vers la droite actionne le bras droit à l'écran.",
+        descAvatar: "Mode Marionnette : contrôle direct de l'anatomie.",
+        btnMicEnable: "🎙️ Activer Micro",
+        btnMicDisable: "🎙️ Couper Micro",
+        lblDynamicMouth: "Bouche Animée",
+        liveTitle: "Réglages Live",
+        lblCharScale: "Échelle Personnage",
+        lblSmooth: "Stabilisateur de Mouvement",
+        lblHeadTilt: "Inclinaison Tête",
+        lblVideoFormat: "Format Vidéo",
+        promptLoadChar: "Importez le personnage pour commencer.",
+        promptTrackingActive: "🎭 Glissez avec le doigt/souris ou utilisez les flèches pour déplacer la figurine !",
+        promptRecordingNotice: "🔴 Enregistrement actif : arrêtez d'abord la vidéo avant d'arrêter le suivi.",
+        promptAlignStickman: "🦴 Alignez le squelette avec le personnage.",
+        promptDrawLasso: "✂️ Découpez la partie : [{part}].",
+        modalTitle: "💡 Guide DoodlePop",
+        guideSection1Title: "🎨 1. Dessiner le personnage",
+        guideSection1P1: "<b>Pose en Étoile :</b> Dessinez les bras et jambes bien écartés du tronc.",
+        guideSection1P2: "<b>Cou Visible :</b> Dessinez un cou net sous la tête.",
+        guideSection1P3: "<b>Feuille Blanche :</b> Fond blanc uni et éclairé.",
+        guideSection2Title: "🦴 2. Placer le squelette",
+        guideSection2P1: "Importez le décor puis le personnage.",
+        guideSection2P2: "Placez les points sur les épaules, coudes, genoux.",
+        guideSection2P3: "Liez le cou à la base du col.",
+        guideSection3Title: "🎭 3. Animation, Déplacement & Enregistrement",
+        guideSection3P1: "Activez la caméra et dansez devant l'écran.",
+        guideSection3P2: "<b>Déplacez la Marionnette :</b> Glissez avec le <b>doigt sur iPad</b> ou utilisez les <b>flèches du clavier</b> pour naviguer sur le décor !",
+        guideSection3P3: "Activez le micro pour enregistrer votre voix naturellement.",
+        guideSection3P4: "Enregistrez votre vidéo.",
+        guideInfographicTitle: "🖼️ Infographie Illustrée",
+        infographicPlaceholder: "Emplacement réservé à votre infographie.",
+        btnUploadInfographic: "📁 Importer image infographie",
+        partsLabels: {
+          tronco: "Tronc", testa: "Tête (avec Cou)",
+          braccio_sx: "Bras Écran Gauche", avambraccio_sx: "Avant-bras Gauche",
+          braccio_dx: "Bras Écran Droit", avambraccio_dx: "Avant-bras Droit",
+          coscia_sx: "Cuisse Gauche", polpaccio_sx: "Jambe Gauche",
+          coscia_dx: "Cuisse Droite", polpaccio_dx: "Jambe Droite"
+        }
+      },
+      de: {
+        badgeTitle: "Puppenspiel Studio",
+        btnGuide: "💡 Anleitung",
+        btnStartTrack: "▶️ Webcam Starten",
+        btnStopTrack: "⏹️ Beenden",
+        btnRecStart: "⏺️ MP4 Aufnehmen",
+        btnRecStop: "⏹️ Speichern",
+        btnResetPos: "🎯 Figur zentrieren",
+        step1Title: "Hintergrund & Figur",
+        btnBgUpload: "🖼️ Hintergrund",
+        btnCharUpload: "🧍 Figur",
+        lblMatting: "🪄 Weißabgleich Toleranz",
+        step2Title: "Skelett Setup",
+        tabStickman: "🦴 Strichmännchen",
+        tabLasso: "✂️ Lasso Ausschneiden",
+        descStickman: "Punkte auf Gelenke ziehen: Der Halsknoten verbindet Kopf und Körper.",
+        btnResetStick: "Zurücksetzen",
+        btnRecalcParts: "Neu berechnen",
+        descLasso: "Teil auswählen und Umriss frei zeichnen.",
+        btnClearLasso: "Umriss löschen",
+        step3Title: "Spiegel & Stimme",
+        tabMirror: "🪞 Kinderspiegel (1:1)",
+        tabAvatar: "🎭 Reale Marionette",
+        descMirror: "Spiegelmodus: Wenn du deinen rechten Arm bewegst, bewegt sich der rechte Bildschirmarm.",
+        descAvatar: "Marionettenmodus: Anatomische Zuordnung.",
+        btnMicEnable: "🎙️ Mikrofon An",
+        btnMicDisable: "🎙️ Mikrofon Aus",
+        lblDynamicMouth: "Dynamischer Mund",
+        liveTitle: "Live-Einstellungen",
+        lblCharScale: "Figurengröße",
+        lblSmooth: "Bewegungsglättung (Anti-Zittern)",
+        lblHeadTilt: "Kopfneigung",
+        lblVideoFormat: "Videoformat",
+        promptLoadChar: "Figur laden um zu beginnen.",
+        promptTrackingActive: "🎭 Ziehe mit Finger/Maus oder nutze Pfeiltasten um die Puppe zu bewegen!",
+        promptRecordingNotice: "🔴 Aufnahme aktiv: Stoppe zuerst das Video bevor du das Tracking beendest.",
+        promptAlignStickman: "🦴 Passe das Skelett an die Figur an.",
+        promptDrawLasso: "✂️ Umriss zeichnen für: [{part}].",
+        modalTitle: "💡 DoodlePop Anleitung",
+        guideSection1Title: "🎨 1. Die Figur zeichnen",
+        guideSection1P1: "<b>Stern-Pose / T-Pose:</b> Arme und Beine weit ausgestreckt zeichnen.",
+        guideSection1P2: "<b>Sichtbarer Hals:</b> Den Hals zwischen Kopf und Hemd frei lassen.",
+        guideSection1P3: "<b>Weißes Papier:</b> Auf rein weißem Papier ohne Schatten zeichnen.",
+        guideSection2Title: "🦴 2. Skelett anpassen",
+        guideSection2P1: "Hintergrund und Figur hochladen.",
+        guideSection2P2: "Punkte auf Schultern, Ellbogen, Knie setzen.",
+        guideSection2P3: "Halsknoten am Hemdkragen platzieren.",
+        guideSection3Title: "🎭 3. Animieren, Bewegen & Aufnehmen",
+        guideSection3P1: "Webcam-Tracking starten.",
+        guideSection3P2: "<b>Bewege die Puppe:</b> Ziehe mit dem <b>Finger auf dem iPad</b> oder nutze die <b>Pfeiltasten</b> um durch die Szene zu laufen!",
+        guideSection3P3: "Sprich ins Mikrofon für natürliche Sprachaufnahmen.",
+        guideSection3P4: "Video aufnehmen und herunterladen.",
+        guideInfographicTitle: "🖼️ Illustrierte Infografik",
+        infographicPlaceholder: "Platzhalter für deine Infografik.",
+        btnUploadInfographic: "📁 Infografik-Bild hochladen",
+        partsLabels: {
+          tronco: "Rumpf", testa: "Kopf (mit Hals)",
+          braccio_sx: "Arm Bildschirm Links", avambraccio_sx: "Unterarm Links",
+          braccio_dx: "Arm Bildschirm Rechts", avambraccio_dx: "Unterarm Rechts",
+          coscia_sx: "Oberschenkel Links", polpaccio_sx: "Bein Links",
+          coscia_dx: "Oberschenkel Rechts", polpaccio_dx: "Bein Rechts"
+        }
+      }
+    };
+
+    let currentLang = 'it';
+
+    function setLanguage(lang) {
+      if (!I18N_DICTIONARY[lang]) return;
+      currentLang = lang;
+      const dict = I18N_DICTIONARY[lang];
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) el.innerHTML = dict[key];
+      });
+
+      setMirrorMode(isMirrorMode);
+      updateInstructions();
+      renderPartsGrid();
+      
+      btnToggleMic.innerText = isMicActive ? dict.btnMicDisable : dict.btnMicEnable;
+      btnToggleTracking.innerText = isTracking ? dict.btnStopTrack : dict.btnStartTrack;
+      btnRecord.innerText = isRecording ? dict.btnRecStop : dict.btnRecStart;
+    }
+
+    document.getElementById('langSelect').addEventListener('change', (e) => {
+      setLanguage(e.target.value);
+    });
+
+    /* ==========================================================================
+       1. DEFINIZIONE ANATOMICA & NODI STICKMAN
+       ========================================================================== */
+    const RIG_PARTS = [
+      { id: 'tronco', jointA: 'neck', jointB: 'pelvis' },
+      { id: 'testa', jointA: 'neck', jointB: 'head' },
+      { id: 'braccio_sx', jointA: 'sh_l', jointB: 'el_l' },
+      { id: 'avambraccio_sx', jointA: 'el_l', jointB: 'wr_l' },
+      { id: 'braccio_dx', jointA: 'sh_r', jointB: 'el_r' },
+      { id: 'avambraccio_dx', jointA: 'el_r', jointB: 'wr_r' },
+      { id: 'coscia_sx', jointA: 'hip_l', jointB: 'kn_l' },
+      { id: 'polpaccio_sx', jointA: 'kn_l', jointB: 'an_l' },
+      { id: 'coscia_dx', jointA: 'hip_r', jointB: 'kn_r' },
+      { id: 'polpaccio_dx', jointA: 'kn_r', jointB: 'an_r' }
+    ];
+
+    const stickmanNodes = {
+      head:   { x: 0.50, y: 0.08 },
+      mouth:  { x: 0.50, y: 0.16 },
+      neck:   { x: 0.50, y: 0.23 },
+      sh_l:   { x: 0.35, y: 0.25 },
+      el_l:   { x: 0.22, y: 0.40 },
+      wr_l:   { x: 0.12, y: 0.52 },
+      sh_r:   { x: 0.65, y: 0.25 },
+      el_r:   { x: 0.78, y: 0.40 },
+      wr_r:   { x: 0.88, y: 0.52 },
+      pelvis: { x: 0.50, y: 0.55 },
+      hip_l:  { x: 0.42, y: 0.57 },
+      kn_l:   { x: 0.38, y: 0.76 },
+      an_l:   { x: 0.35, y: 0.94 },
+      hip_r:  { x: 0.58, y: 0.57 },
+      kn_r:   { x: 0.62, y: 0.76 },
+      an_r:   { x: 0.65, y: 0.94 }
+    };
+
+    const stickmanBones = [
+      ['head', 'neck'],
+      ['neck', 'sh_l'], ['sh_l', 'el_l'], ['el_l', 'wr_l'],
+      ['neck', 'sh_r'], ['sh_r', 'el_r'], ['el_r', 'wr_r'],
+      ['neck', 'pelvis'],
+      ['pelvis', 'hip_l'], ['hip_l', 'kn_l'], ['kn_l', 'an_l'],
+      ['pelvis', 'hip_r'], ['hip_r', 'kn_r'], ['kn_r', 'an_r']
+    ];
+
+    const partsData = {};
+    RIG_PARTS.forEach(p => {
+      partsData[p.id] = {
+        polygon: [],
+        pivot: { x: 0.5, y: 0.5 },
+        canvas: null,
+        bbox: null,
+        restAngle: 0,
+        length: 0,
+        completed: false
+      };
+    });
+
+    let activeTab = 'STICKMAN';
+    let isMirrorMode = true;
+    let currentPartIndex = 0;
+    let draggedNode = null;
+    let isDrawingLasso = false;
+    let activeDrawingPoints = [];
+
+    // TRASLAZIONE MONDO PERSONAGGIO SULLA SCENA
+    let charWorldOffset = { x: 0, y: 0 };
+    let isDraggingPuppet = false;
+    let dragStartPos = { x: 0, y: 0 };
+
+    let rawCharImage = null;
+    let mattedCharCanvas = null;
+    let bgImage = null;
+
+    let isTracking = false;
+    let rawLandmarks = null;
+    let smoothedLandmarks = null;
+    
+    // Audio Mic State (Pure & Clean Direct Chain)
+    let audioContext = null;
+    let audioStream = null;
+    let analyser = null;
+    let micGainNode = null;
+    let fxDestinationNode = null;
+    let isMicActive = false;
+    let micVolume = 0;
+    let micAnimFrame = null;
+
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let isRecording = false;
+    let recStartTime = 0;
+    let recInterval = null;
+
+    const mainCanvas = document.getElementById('mainCanvas');
+    const ctx = mainCanvas.getContext('2d');
+    const viewportArea = document.getElementById('viewportArea');
+    const webcamVideo = document.getElementById('webcamVideo');
+    const instructionsBanner = document.getElementById('instructionsBanner');
+    const btnToggleTracking = document.getElementById('btnToggleTracking');
+    const btnRecord = document.getElementById('btnRecord');
+    const btnToggleMic = document.getElementById('btnToggleMic');
+    const micLevel = document.getElementById('micLevel');
+    const recBadge = document.getElementById('recBadge');
+    const recTimer = document.getElementById('recTimer');
+    const charScaleSlider = document.getElementById('charScale');
+    const smoothSlider = document.getElementById('smoothSlider');
+    const smoothVal = document.getElementById('smoothVal');
+    const headSensSlider = document.getElementById('headSens');
+    const thresholdSlider = document.getElementById('thresholdSlider');
+    const threshVal = document.getElementById('threshVal');
+    const partsGrid = document.getElementById('partsGrid');
+    const enableMouthDraw = document.getElementById('enableMouthDraw');
+    const videoFormatSelect = document.getElementById('videoFormatSelect');
+    const btnResetPosition = document.getElementById('btnResetPosition');
+    const langSelect = document.getElementById('langSelect');
+    const lblBgUpload = document.getElementById('lblBgUpload');
+    const lblCharUpload = document.getElementById('lblCharUpload');
+
+    // Modal
+    const guideModal = document.getElementById('guideModal');
+    const btnOpenGuide = document.getElementById('btnOpenGuide');
+    const btnCloseGuide = document.getElementById('btnCloseGuide');
+    const infograficaUpload = document.getElementById('infograficaUpload');
+    const infograficaContainer = document.getElementById('infograficaContainer');
+
+    btnOpenGuide.onclick = () => guideModal.style.display = 'flex';
+    btnCloseGuide.onclick = () => guideModal.style.display = 'none';
+    guideModal.onclick = (e) => {
+      if (e.target === guideModal) guideModal.style.display = 'none';
+    };
+
+    infograficaUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        infograficaContainer.innerHTML = `<img src="${event.target.result}" alt="Infografica Guida">`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    btnResetPosition.onclick = () => {
+      charWorldOffset = { x: 0, y: 0 };
+    };
+
+    smoothSlider.addEventListener('input', (e) => {
+      smoothVal.innerText = `${e.target.value}%`;
+    });
+
+    function setSetupTab(tab) {
+      activeTab = tab;
+      document.getElementById('tabStickman').className = `mode-tab ${tab === 'STICKMAN' ? 'active' : ''}`;
+      document.getElementById('tabLasso').className = `mode-tab ${tab === 'LASSO' ? 'active' : ''}`;
+      document.getElementById('stickmanControls').style.display = tab === 'STICKMAN' ? 'flex' : 'none';
+      document.getElementById('lassoControls').style.display = tab === 'LASSO' ? 'flex' : 'none';
+      updateInstructions();
+    }
+
+    function setMirrorMode(isMirror) {
+      isMirrorMode = isMirror;
+      document.getElementById('modeMirror').className = `mode-tab ${isMirror ? 'active' : ''}`;
+      document.getElementById('modeAvatar').className = `mode-tab ${!isMirror ? 'active' : ''}`;
+      const descEl = document.getElementById('modeDescription');
+      const dict = I18N_DICTIONARY[currentLang];
+      descEl.textContent = isMirror ? dict.descMirror : dict.descAvatar;
+    }
+
+    function renderPartsGrid() {
+      partsGrid.innerHTML = '';
+      const dict = I18N_DICTIONARY[currentLang];
+      RIG_PARTS.forEach((part, index) => {
+        const btn = document.createElement('button');
+        btn.className = `part-btn ${index === currentPartIndex ? 'active' : ''} ${partsData[part.id].completed ? 'cut-ok' : ''}`;
+        const label = dict.partsLabels[part.id] || part.id;
+        btn.innerHTML = `<span>${label}</span> <span>${partsData[part.id].completed ? '✓' : ''}</span>`;
+        btn.onclick = () => {
+          currentPartIndex = index;
+          renderPartsGrid();
+          updateInstructions();
+        };
+        partsGrid.appendChild(btn);
+      });
+    }
+
+    function updateInstructions() {
+      const dict = I18N_DICTIONARY[currentLang];
+      if (!rawCharImage) {
+        instructionsBanner.innerText = dict.promptLoadChar;
+        return;
+      }
+      if (isRecording) {
+        instructionsBanner.innerText = dict.promptRecordingNotice;
+        return;
+      }
+      if (isTracking) {
+        instructionsBanner.innerText = dict.promptTrackingActive;
+        return;
+      }
+      if (activeTab === 'STICKMAN') {
+        instructionsBanner.innerText = dict.promptAlignStickman;
+      } else {
+        const p = RIG_PARTS[currentPartIndex];
+        const label = dict.partsLabels[p.id] || p.id;
+        instructionsBanner.innerText = dict.promptDrawLasso.replace('{part}', label);
+      }
+    }
+
+    /* ==========================================================================
+       2. CARICAMENTO E SCONTORNO IMMAGINI
+       ========================================================================== */
+    function applyAutoMatting() {
+      if (!rawCharImage) return;
+      const w = rawCharImage.width;
+      const h = rawCharImage.height;
+
+      if (!mattedCharCanvas) mattedCharCanvas = document.createElement('canvas');
+      mattedCharCanvas.width = w;
+      mattedCharCanvas.height = h;
+
+      const mCtx = mattedCharCanvas.getContext('2d');
+      mCtx.drawImage(rawCharImage, 0, 0);
+
+      const imgData = mCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+      const threshold = parseInt(thresholdSlider.value, 10);
+      const whiteCutoff = 255 - (threshold * 2.3);
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i+1];
+        const b = data[i+2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const colorDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(b - r));
+
+        if (lum > whiteCutoff && colorDiff < 30) {
+          const fade = Math.max(0, 1 - (lum - whiteCutoff) / 25);
+          data[i + 3] = Math.floor(data[i + 3] * fade);
+        }
+      }
+
+      mCtx.putImageData(imgData, 0, 0);
+      rebuildAllClippedParts();
+    }
+
+    thresholdSlider.addEventListener('input', (e) => {
+      threshVal.innerText = e.target.value;
+      applyAutoMatting();
+    });
+
+    document.getElementById('bgUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => { bgImage = img; };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('charUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          rawCharImage = img;
+          btnToggleTracking.disabled = false;
+          applyAutoMatting();
+          generateAutoCutsFromStickman();
+          updateInstructions();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    /* ==========================================================================
+       3. RITAGLIO VETTORIALE SENZA FESSURE
+       ========================================================================== */
+    function buildPartFromPolygon(partId, polygon) {
+      if (!mattedCharCanvas || !polygon || polygon.length < 3) return;
+      const w = mattedCharCanvas.width;
+      const h = mattedCharCanvas.height;
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      polygon.forEach(pt => {
+        const px = pt.x * w;
+        const py = pt.y * h;
+        if (px < minX) minX = px;
+        if (py < minY) minY = py;
+        if (px > maxX) maxX = px;
+        if (py > maxY) maxY = py;
+      });
+
+      const bw = Math.max(4, Math.ceil(maxX - minX));
+      const bh = Math.max(4, Math.ceil(maxY - minY));
+
+      const c = document.createElement('canvas');
+      c.width = bw;
+      c.height = bh;
+      const cCtx = c.getContext('2d');
+
+      cCtx.beginPath();
+      polygon.forEach((pt, idx) => {
+        const px = (pt.x * w) - minX;
+        const py = (pt.y * h) - minY;
+        if (idx === 0) cCtx.moveTo(px, py);
+        else cCtx.lineTo(px, py);
+      });
+      cCtx.closePath();
+      cCtx.clip();
+
+      cCtx.drawImage(mattedCharCanvas, -minX, -minY);
+
+      partsData[partId].canvas = c;
+      partsData[partId].bbox = { x: minX, y: minY, w: bw, h: bh };
+      partsData[partId].polygon = [...polygon];
+      partsData[partId].completed = true;
+
+      const def = RIG_PARTS.find(p => p.id === partId);
+      if (def && stickmanNodes[def.jointA]) {
+        const jA = stickmanNodes[def.jointA];
+        partsData[partId].pivot = {
+          x: ((jA.x * w) - minX) / bw,
+          y: ((jA.y * h) - minY) / bh
+        };
+
+        if (stickmanNodes[def.jointB]) {
+          const jB = stickmanNodes[def.jointB];
+          const dx = (jB.x - jA.x) * w;
+          const dy = (jB.y - jA.y) * h;
+          partsData[partId].restAngle = Math.atan2(dy, dx);
+          partsData[partId].length = Math.hypot(dx, dy);
+        }
+      }
+    }
+
+    function rebuildAllClippedParts() {
+      RIG_PARTS.forEach(p => {
+        if (partsData[p.id].polygon && partsData[p.id].polygon.length >= 3) {
+          buildPartFromPolygon(p.id, partsData[p.id].polygon);
+        }
+      });
+    }
+
+    function generateAutoCutsFromStickman() {
+      if (!rawCharImage) return;
+
+      function createCapsule(j1Name, j2Name, radius) {
+        const p1 = stickmanNodes[j1Name];
+        const p2 = stickmanNodes[j2Name];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len = Math.hypot(dx, dy) || 0.001;
+        const nx = -dy / len * radius;
+        const ny = dx / len * radius;
+        return [
+          { x: p1.x + nx, y: p1.y + ny },
+          { x: p2.x + nx, y: p2.y + ny },
+          { x: p2.x - nx, y: p2.y - ny },
+          { x: p1.x - nx, y: p1.y - ny }
+        ];
+      }
+
+      const neck = stickmanNodes.neck;
+      const head = stickmanNodes.head;
+      const pelvis = stickmanNodes.pelvis;
+      const sh_l = stickmanNodes.sh_l;
+      const sh_r = stickmanNodes.sh_r;
+
+      const headRadius = Math.max(0.12, Math.hypot(head.x - neck.x, head.y - neck.y) * 1.05);
+      const headPoly = [];
+      for (let a = Math.PI; a <= Math.PI * 2; a += Math.PI / 8) {
+        headPoly.push({ x: head.x + Math.cos(a) * headRadius * 0.85, y: head.y + Math.sin(a) * headRadius });
+      }
+      headPoly.push({ x: neck.x + 0.05, y: neck.y });
+      headPoly.push({ x: neck.x - 0.05, y: neck.y });
+      buildPartFromPolygon('testa', headPoly);
+
+      buildPartFromPolygon('tronco', [
+        { x: sh_l.x - 0.03, y: neck.y },
+        { x: sh_r.x + 0.03, y: neck.y },
+        { x: stickmanNodes.hip_r.x + 0.04, y: pelvis.y + 0.04 },
+        { x: stickmanNodes.hip_l.x - 0.04, y: pelvis.y + 0.04 }
+      ]);
+
+      buildPartFromPolygon('braccio_sx', createCapsule('sh_l', 'el_l', 0.06));
+      buildPartFromPolygon('avambraccio_sx', createCapsule('el_l', 'wr_l', 0.05));
+      buildPartFromPolygon('braccio_dx', createCapsule('sh_r', 'el_r', 0.06));
+      buildPartFromPolygon('avambraccio_dx', createCapsule('el_r', 'wr_r', 0.05));
+
+      buildPartFromPolygon('coscia_sx', createCapsule('hip_l', 'kn_l', 0.07));
+      buildPartFromPolygon('polpaccio_sx', createCapsule('kn_l', 'an_l', 0.06));
+      buildPartFromPolygon('coscia_dx', createCapsule('hip_r', 'kn_r', 0.07));
+      buildPartFromPolygon('polpaccio_dx', createCapsule('kn_r', 'an_r', 0.06));
+
+      renderPartsGrid();
+    }
+
+    document.getElementById('btnAutoCutStickman').addEventListener('click', generateAutoCutsFromStickman);
+    document.getElementById('btnResetStickman').addEventListener('click', () => {
+      stickmanNodes.head.x = 0.50; stickmanNodes.head.y = 0.08;
+      stickmanNodes.mouth.x = 0.50; stickmanNodes.mouth.y = 0.16;
+      stickmanNodes.neck.x = 0.50; stickmanNodes.neck.y = 0.23;
+      stickmanNodes.sh_l.x = 0.35; stickmanNodes.sh_l.y = 0.25;
+      stickmanNodes.el_l.x = 0.22; stickmanNodes.el_l.y = 0.40;
+      stickmanNodes.wr_l.x = 0.12; stickmanNodes.wr_l.y = 0.52;
+      stickmanNodes.sh_r.x = 0.65; stickmanNodes.sh_r.y = 0.25;
+      stickmanNodes.el_r.x = 0.78; stickmanNodes.el_r.y = 0.40;
+      stickmanNodes.wr_r.x = 0.88; stickmanNodes.wr_r.y = 0.52;
+      pelvis.x = 0.50; stickmanNodes.pelvis.y = 0.55;
+      hip_l.x = 0.42; stickmanNodes.hip_l.y = 0.57;
+      kn_l.x = 0.38; stickmanNodes.kn_l.y = 0.76;
+      an_l.x = 0.35; stickmanNodes.an_l.y = 0.94;
+      hip_r.x = 0.58; stickmanNodes.hip_r.y = 0.57;
+      kn_r.x = 0.62; stickmanNodes.kn_r.y = 0.76;
+      an_r.x = 0.65; stickmanNodes.an_r.y = 0.94;
+      generateAutoCutsFromStickman();
+    });
+
+    document.getElementById('btnClearCurrentLasso').addEventListener('click', () => {
+      const part = RIG_PARTS[currentPartIndex];
+      partsData[part.id].polygon = [];
+      partsData[part.id].completed = false;
+      partsData[part.id].canvas = null;
+      renderPartsGrid();
+    });
+
+    /* ==========================================================================
+       4. INTERAZIONE TOUCH / MOUSE
+       ========================================================================== */
+    function getImageDisplayRect() {
+      if (!mattedCharCanvas) return null;
+      const scale = Math.min(mainCanvas.width / mattedCharCanvas.width, mainCanvas.height / mattedCharCanvas.height) * 0.85;
+      const w = mattedCharCanvas.width * scale;
+      const h = mattedCharCanvas.height * scale;
+      const x = (mainCanvas.width - w) / 2;
+      const y = (mainCanvas.height - h) / 2;
+      return { x, y, w, h, scale };
+    }
+
+    function getCanvasCoords(clientX, clientY) {
+      const rect = mainCanvas.getBoundingClientRect();
+      const scaleX = mainCanvas.width / rect.width;
+      const scaleY = mainCanvas.height / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function handlePointerDown(clientX, clientY) {
+      if (!mattedCharCanvas) return;
+      const coords = getCanvasCoords(clientX, clientY);
+
+      if (isTracking) {
+        isDraggingPuppet = true;
+        dragStartPos = {
+          x: coords.x - charWorldOffset.x,
+          y: coords.y - charWorldOffset.y
+        };
+        return;
+      }
+
+      const imgRect = getImageDisplayRect();
+      if (!imgRect) return;
+
+      const normX = (coords.x - imgRect.x) / imgRect.w;
+      const normY = (coords.y - imgRect.y) / imgRect.h;
+
+      if (activeTab === 'STICKMAN') {
+        let minDist = 0.05;
+        draggedNode = null;
+        for (const [key, node] of Object.entries(stickmanNodes)) {
+          const dist = Math.hypot(node.x - normX, node.y - normY);
+          if (dist < minDist) {
+            minDist = dist;
+            draggedNode = key;
+          }
+        }
+      } else {
+        isDrawingLasso = true;
+        activeDrawingPoints = [{ x: Math.max(0, Math.min(1, normX)), y: Math.max(0, Math.min(1, normY)) }];
+      }
+    }
+
+    function handlePointerMove(clientX, clientY) {
+      if (!mattedCharCanvas) return;
+      const coords = getCanvasCoords(clientX, clientY);
+
+      if (isTracking) {
+        if (isDraggingPuppet) {
+          charWorldOffset.x = coords.x - dragStartPos.x;
+          charWorldOffset.y = coords.y - dragStartPos.y;
+        }
+        return;
+      }
+
+      const imgRect = getImageDisplayRect();
+      if (!imgRect) return;
+
+      const normX = (coords.x - imgRect.x) / imgRect.w;
+      const normY = (coords.y - imgRect.y) / imgRect.h;
+
+      if (activeTab === 'STICKMAN' && draggedNode) {
+        stickmanNodes[draggedNode].x = Math.max(0, Math.min(1, normX));
+        stickmanNodes[draggedNode].y = Math.max(0, Math.min(1, normY));
+      } else if (activeTab === 'LASSO' && isDrawingLasso) {
+        const lastPt = activeDrawingPoints[activeDrawingPoints.length - 1];
+        if (!lastPt || Math.hypot(lastPt.x - normX, lastPt.y - normY) > 0.008) {
+          activeDrawingPoints.push({ x: Math.max(0, Math.min(1, normX)), y: Math.max(0, Math.min(1, normY)) });
+        }
+      }
+    }
+
+    function handlePointerUp() {
+      if (isTracking) {
+        isDraggingPuppet = false;
+        return;
+      }
+
+      if (activeTab === 'STICKMAN' && draggedNode) {
+        draggedNode = null;
+        generateAutoCutsFromStickman();
+      } else if (activeTab === 'LASSO' && isDrawingLasso) {
+        isDrawingLasso = false;
+        if (activeDrawingPoints.length >= 3) {
+          const part = RIG_PARTS[currentPartIndex];
+          buildPartFromPolygon(part.id, activeDrawingPoints);
+          renderPartsGrid();
+
+          if (currentPartIndex < RIG_PARTS.length - 1) {
+            currentPartIndex++;
+            renderPartsGrid();
+            updateInstructions();
+          }
+        }
+        activeDrawingPoints = [];
+      }
+    }
+
+    mainCanvas.addEventListener('mousedown', (e) => handlePointerDown(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', handlePointerUp);
+
+    mainCanvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) handlePointerDown(e.touches[0].clientX, e.touches[0].clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) handlePointerMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+
+    window.addEventListener('touchend', handlePointerUp);
+
+    window.addEventListener('keydown', (e) => {
+      if (!isTracking) return;
+      const step = 20;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') charWorldOffset.x -= step;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') charWorldOffset.x += step;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') charWorldOffset.y -= step;
+      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') charWorldOffset.y += step;
+    });
+
+    /* ==========================================================================
+       5. AUDIO ANALYSER (Microfono Naturale, Pulito & Cristallino)
+       ========================================================================== */
+    btnToggleMic.addEventListener('click', async () => {
+      const dict = I18N_DICTIONARY[currentLang];
+      if (!isMicActive) {
+        try {
+          audioStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            } 
+          });
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          
+          const source = audioContext.createMediaStreamSource(audioStream);
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          
+          micGainNode = audioContext.createGain();
+          micGainNode.gain.value = 1.25;
+
+          fxDestinationNode = audioContext.createMediaStreamDestination();
+
+          source.connect(analyser);
+          source.connect(micGainNode);
+          micGainNode.connect(fxDestinationNode);
+
+          isMicActive = true;
+          btnToggleMic.classList.remove('btn-secondary');
+          btnToggleMic.classList.add('btn-success');
+          btnToggleMic.innerText = dict.btnMicDisable;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          function checkAudio() {
+            if (!isMicActive) return;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            const rawVol = avg / 255;
+            micVolume = rawVol > 0.04 ? (rawVol - 0.04) * 1.2 : 0;
+            micLevel.style.width = `${Math.min(100, micVolume * 300)}%`;
+            micAnimFrame = requestAnimationFrame(checkAudio);
+          }
+          checkAudio();
+        } catch (err) {
+          alert('Microphone access failed: ' + err.message);
+        }
+      } else {
+        isMicActive = false;
+        if (micAnimFrame) cancelAnimationFrame(micAnimFrame);
+        if (audioStream) {
+          audioStream.getTracks().forEach(track => track.stop());
+          audioStream = null;
+        }
+        if (audioContext) {
+          audioContext.close();
+          audioContext = null;
+        }
+        micVolume = 0;
+        micLevel.style.width = '0%';
+        btnToggleMic.classList.remove('btn-success');
+        btnToggleMic.classList.add('btn-secondary');
+        btnToggleMic.innerText = dict.btnMicEnable;
+      }
+    });
+
+    /* ==========================================================================
+       6. MEDIAPIPE TRACKING CON STABILIZZATORE ESPONENZIALE
+       ========================================================================== */
+    const pose = new Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    pose.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    pose.onResults((results) => {
+      if (results.poseLandmarks) {
+        rawLandmarks = results.poseLandmarks;
+
+        const smoothPercent = parseInt(smoothSlider.value, 10);
+        const alpha = 1.0 - (smoothPercent / 100) * 0.92;
+
+        if (!smoothedLandmarks) {
+          smoothedLandmarks = rawLandmarks.map(p => ({ ...p }));
+        } else {
+          for (let i = 0; i < rawLandmarks.length; i++) {
+            smoothedLandmarks[i].x = alpha * rawLandmarks[i].x + (1 - alpha) * smoothedLandmarks[i].x;
+            smoothedLandmarks[i].y = alpha * rawLandmarks[i].y + (1 - alpha) * smoothedLandmarks[i].y;
+            smoothedLandmarks[i].z = alpha * rawLandmarks[i].z + (1 - alpha) * smoothedLandmarks[i].z;
+          }
+        }
+      }
+    });
+
+    let camera = null;
+    btnToggleTracking.addEventListener('click', () => {
+      // BLOCCO DI SICUREZZA: se la registrazione è in corso, impedisci lo stop del tracking
+      if (isRecording) {
+        const dict = I18N_DICTIONARY[currentLang];
+        alert(dict.promptRecordingNotice);
+        return;
+      }
+
+      const dict = I18N_DICTIONARY[currentLang];
+      if (!isTracking) {
+        isTracking = true;
+        viewportArea.classList.add('tracking-active');
+        btnToggleTracking.innerText = dict.btnStopTrack;
+        btnToggleTracking.classList.remove('btn-primary');
+        btnToggleTracking.classList.add('btn-danger');
+        btnRecord.disabled = false;
+
+        camera = new Camera(webcamVideo, {
+          onFrame: async () => {
+            if (isTracking) await pose.send({ image: webcamVideo });
+          },
+          width: 640,
+          height: 480
+        });
+        camera.start();
+        updateInstructions();
+      } else {
+        isTracking = false;
+        viewportArea.classList.remove('tracking-active');
+        btnToggleTracking.innerText = dict.btnStartTrack;
+        btnToggleTracking.classList.remove('btn-danger');
+        btnToggleTracking.classList.add('btn-primary');
+        btnRecord.disabled = true;
+        if (camera) camera.stop();
+        updateInstructions();
+      }
+    });
+
+    /* ==========================================================================
+       7. RENDERING LOOP (SEAMLESS HEAD & SMOOTH MOTION)
+       ========================================================================== */
+    function render() {
+      ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+      if (isTracking) {
+        if (bgImage) {
+          ctx.drawImage(bgImage, 0, 0, mainCanvas.width, mainCanvas.height);
+        } else {
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+        }
+
+        if (smoothedLandmarks && partsData['tronco'].completed) {
+          renderLivePuppet();
+        }
+
+      } else {
+        if (bgImage) {
+          ctx.globalAlpha = 0.25;
+          ctx.drawImage(bgImage, 0, 0, mainCanvas.width, mainCanvas.height);
+          ctx.globalAlpha = 1.0;
+        }
+
+        if (mattedCharCanvas) {
+          const imgRect = getImageDisplayRect();
+          ctx.drawImage(mattedCharCanvas, imgRect.x, imgRect.y, imgRect.w, imgRect.h);
+
+          RIG_PARTS.forEach((part, idx) => {
+            const p = partsData[part.id];
+            if (p.polygon && p.polygon.length > 2) {
+              ctx.beginPath();
+              p.polygon.forEach((pt, i) => {
+                const px = imgRect.x + pt.x * imgRect.w;
+                const py = imgRect.y + pt.y * imgRect.h;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+              });
+              ctx.closePath();
+              ctx.strokeStyle = (idx === currentPartIndex && activeTab === 'LASSO') ? '#06b6d4' : 'rgba(99, 102, 241, 0.4)';
+              ctx.lineWidth = (idx === currentPartIndex && activeTab === 'LASSO') ? 2.5 : 1.5;
+              ctx.stroke();
+            }
+          });
+
+          if (activeTab === 'STICKMAN') {
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            stickmanBones.forEach(([b1, b2]) => {
+              const p1 = stickmanNodes[b1];
+              const p2 = stickmanNodes[b2];
+              ctx.beginPath();
+              ctx.moveTo(imgRect.x + p1.x * imgRect.w, imgRect.y + p1.y * imgRect.h);
+              ctx.lineTo(imgRect.x + p2.x * imgRect.w, imgRect.y + p2.y * imgRect.h);
+              ctx.stroke();
+            });
+
+            for (const [key, node] of Object.entries(stickmanNodes)) {
+              const nx = imgRect.x + node.x * imgRect.w;
+              const ny = imgRect.y + node.y * imgRect.h;
+              ctx.fillStyle = (draggedNode === key) ? '#ef4444' : (key === 'mouth' ? '#ec4899' : '#06b6d4');
+              ctx.beginPath();
+              ctx.arc(nx, ny, key === 'mouth' ? 7 : 6, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+          }
+
+          if (activeTab === 'LASSO' && activeDrawingPoints.length > 0) {
+            ctx.beginPath();
+            activeDrawingPoints.forEach((pt, i) => {
+              const px = imgRect.x + pt.x * imgRect.w;
+              const py = imgRect.y + pt.y * imgRect.h;
+              if (i === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            });
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    function renderLivePuppet() {
+      const scaleFactor = parseFloat(charScaleSlider.value);
+      const headSens = parseFloat(headSensSlider.value);
+
+      function toScreenPt(lm) {
+        if (!lm) return { x: 0, y: 0 };
+        return {
+          x: isMirrorMode ? (1 - lm.x) : lm.x,
+          y: lm.y
+        };
+      }
+
+      let pShScreenSX, pElScreenSX, pWrScreenSX, pHipScreenSX, pKnScreenSX, pAnScreenSX;
+      let pShScreenDX, pElScreenDX, pWrScreenDX, pHipScreenDX, pKnScreenDX, pAnScreenDX;
+      let pEyeLeft, pEyeRight;
+
+      if (isMirrorMode) {
+        pShScreenSX = toScreenPt(smoothedLandmarks[11]);
+        pElScreenSX = toScreenPt(smoothedLandmarks[13]);
+        pWrScreenSX = toScreenPt(smoothedLandmarks[15]);
+        pHipScreenSX = toScreenPt(smoothedLandmarks[23]);
+        pKnScreenSX = toScreenPt(smoothedLandmarks[25]);
+        pAnScreenSX = toScreenPt(smoothedLandmarks[27]);
+
+        pShScreenDX = toScreenPt(smoothedLandmarks[12]);
+        pElScreenDX = toScreenPt(smoothedLandmarks[14]);
+        pWrScreenDX = toScreenPt(smoothedLandmarks[16]);
+        pHipScreenDX = toScreenPt(smoothedLandmarks[24]);
+        pKnScreenDX = toScreenPt(smoothedLandmarks[26]);
+        pAnScreenDX = toScreenPt(smoothedLandmarks[28]);
+
+        pEyeLeft = toScreenPt(smoothedLandmarks[2]);
+        pEyeRight = toScreenPt(smoothedLandmarks[5]);
+      } else {
+        pShScreenSX = toScreenPt(smoothedLandmarks[12]);
+        pElScreenSX = toScreenPt(smoothedLandmarks[14]);
+        pWrScreenSX = toScreenPt(smoothedLandmarks[16]);
+        pHipScreenSX = toScreenPt(smoothedLandmarks[24]);
+        pKnScreenSX = toScreenPt(smoothedLandmarks[26]);
+        pAnScreenSX = toScreenPt(smoothedLandmarks[28]);
+
+        pShScreenDX = toScreenPt(smoothedLandmarks[11]);
+        pElScreenDX = toScreenPt(smoothedLandmarks[13]);
+        pWrScreenDX = toScreenPt(smoothedLandmarks[15]);
+        pHipScreenDX = toScreenPt(smoothedLandmarks[23]);
+        pKnScreenDX = toScreenPt(smoothedLandmarks[25]);
+        pAnScreenDX = toScreenPt(smoothedLandmarks[27]);
+
+        pEyeLeft = toScreenPt(smoothedLandmarks[5]);
+        pEyeRight = toScreenPt(smoothedLandmarks[2]);
+      }
+
+      function getVectorAngle(pA, pB) {
+        if (!pA || !pB) return Math.PI / 2;
+        return Math.atan2(pB.y - pA.y, pB.x - pA.x);
+      }
+
+      const rootX = (((pShScreenSX.x + pShScreenDX.x) / 2) * mainCanvas.width) + charWorldOffset.x;
+      const rootY = (((pShScreenSX.y + pShScreenDX.y) / 2) * mainCanvas.height) + charWorldOffset.y;
+
+      const imgW = mattedCharCanvas.width * scaleFactor;
+      const imgH = mattedCharCanvas.height * scaleFactor;
+
+      const midShoulders = { x: (pShScreenSX.x + pShScreenDX.x)/2, y: (pShScreenSX.y + pShScreenDX.y)/2 };
+      const midHips = { x: (pHipScreenSX.x + pHipScreenDX.x)/2, y: (pHipScreenSX.y + pHipScreenDX.y)/2 };
+      const curTorsoAngle = getVectorAngle(midShoulders, midHips);
+      const restTorsoAngle = partsData['tronco'].restAngle || (Math.PI / 2);
+      const torsoDelta = curTorsoAngle - restTorsoAngle;
+
+      const eyeAngle = Math.atan2(pEyeRight.y - pEyeLeft.y, pEyeRight.x - pEyeLeft.x);
+      const maxHeadRad = (25 * Math.PI) / 180;
+      const clampedHeadTilt = Math.max(-maxHeadRad, Math.min(maxHeadRad, eyeAngle * headSens));
+      const headTotalAngle = torsoDelta + clampedHeadTilt;
+
+      function drawPartRotated(partId, anchorPos, deltaAngle) {
+        const p = partsData[partId];
+        if (!p.completed || !p.canvas) return;
+
+        ctx.save();
+        ctx.translate(anchorPos.x, anchorPos.y);
+        ctx.rotate(deltaAngle);
+
+        const w = p.bbox.w * scaleFactor;
+        const h = p.bbox.h * scaleFactor;
+        const pivotX = w * p.pivot.x;
+        const pivotY = h * p.pivot.y;
+
+        ctx.drawImage(p.canvas, -pivotX, -pivotY, w, h);
+        ctx.restore();
+      }
+
+      const neckPos = {
+        x: rootX,
+        y: rootY
+      };
+
+      // 1. Gambe
+      const hipOffsetSX = (stickmanNodes.hip_l.x - stickmanNodes.neck.x) * imgW;
+      const hipOffsetSY = (stickmanNodes.hip_l.y - stickmanNodes.neck.y) * imgH;
+      const hipSX = {
+        x: neckPos.x + hipOffsetSX,
+        y: neckPos.y + hipOffsetSY
+      };
+      const restThighSX = partsData['coscia_sx'].restAngle || (Math.PI / 2);
+      const curThighSX = getVectorAngle(pHipScreenSX, pKnScreenSX);
+      const deltaThighSX = curThighSX - restThighSX;
+      drawPartRotated('coscia_sx', hipSX, deltaThighSX);
+
+      const restShinSX = partsData['polpaccio_sx'].restAngle || (Math.PI / 2);
+      const curShinSX = getVectorAngle(pKnScreenSX, pAnScreenSX);
+      const deltaShinSX = curShinSX - restShinSX;
+      const lenThighSX = (partsData['coscia_sx'].length || 80) * scaleFactor;
+      const kneeSX = {
+        x: hipSX.x + Math.cos(restThighSX + deltaThighSX) * lenThighSX,
+        y: hipSX.y + Math.sin(restThighSX + deltaThighSX) * lenThighSX
+      };
+      drawPartRotated('polpaccio_sx', kneeSX, deltaShinSX);
+
+      const hipOffsetDX = (stickmanNodes.hip_r.x - stickmanNodes.neck.x) * imgW;
+      const hipOffsetDY = (stickmanNodes.hip_r.y - stickmanNodes.neck.y) * imgH;
+      const hipDX = {
+        x: neckPos.x + hipOffsetDX,
+        y: neckPos.y + hipOffsetDY
+      };
+      const restThighDX = partsData['coscia_dx'].restAngle || (Math.PI / 2);
+      const curThighDX = getVectorAngle(pHipScreenDX, pKnScreenDX);
+      const deltaThighDX = curThighDX - restThighDX;
+      drawPartRotated('coscia_dx', hipDX, deltaThighDX);
+
+      const restShinDX = partsData['polpaccio_dx'].restAngle || (Math.PI / 2);
+      const curShinDX = getVectorAngle(pKnScreenDX, pAnScreenDX);
+      const deltaShinDX = curShinDX - restShinDX;
+      const lenThighDX = (partsData['coscia_dx'].length || 80) * scaleFactor;
+      const kneeDX = {
+        x: hipDX.x + Math.cos(restThighDX + deltaThighDX) * lenThighDX,
+        y: hipDX.y + Math.sin(restThighDX + deltaThighDX) * lenThighDX
+      };
+      drawPartRotated('polpaccio_dx', kneeDX, deltaShinDX);
+
+      // 2. Tronco
+      drawPartRotated('tronco', neckPos, torsoDelta);
+
+      // 3. Testa
+      drawPartRotated('testa', neckPos, headTotalAngle);
+
+      // 3b. Bocca Dinamica
+      if (enableMouthDraw.checked) {
+        const mouthRelX = (stickmanNodes.mouth.x - stickmanNodes.neck.x) * imgW;
+        const mouthRelY = (stickmanNodes.mouth.y - stickmanNodes.neck.y) * imgH;
+
+        ctx.save();
+        ctx.translate(neckPos.x, neckPos.y);
+        ctx.rotate(headTotalAngle);
+        ctx.translate(mouthRelX, mouthRelY);
+
+        const mouthWidth = Math.max(12, 18 * scaleFactor);
+        const openHeight = micVolume * 24 * 3.5 * scaleFactor;
+
+        if (openHeight > 2.5) {
+          ctx.beginPath();
+          ctx.ellipse(0, openHeight * 0.3, mouthWidth, openHeight, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#1e1b18';
+          ctx.fill();
+          ctx.lineWidth = Math.max(2, 2.5 * scaleFactor);
+          ctx.strokeStyle = '#374151';
+          ctx.stroke();
+
+          ctx.save();
+          ctx.clip();
+          ctx.beginPath();
+          ctx.arc(0, openHeight * 0.8, mouthWidth * 0.65, Math.PI, 0);
+          ctx.fillStyle = '#f43f5e';
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, -mouthWidth * 0.4, mouthWidth * 0.7, 0.25 * Math.PI, 0.75 * Math.PI, false);
+          ctx.lineWidth = Math.max(2, 2.5 * scaleFactor);
+          ctx.strokeStyle = '#1e1b18';
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 4. Braccia
+      const shSX = {
+        x: neckPos.x + ((stickmanNodes.sh_l.x - stickmanNodes.neck.x) * imgW),
+        y: neckPos.y + ((stickmanNodes.sh_l.y - stickmanNodes.neck.y) * imgH)
+      };
+      const restArmSX = partsData['braccio_sx'].restAngle || (Math.PI * 0.75);
+      const curArmSX = getVectorAngle(pShScreenSX, pElScreenSX);
+      const deltaArmSX = curArmSX - restArmSX;
+      drawPartRotated('braccio_sx', shSX, deltaArmSX);
+
+      const restForearmSX = partsData['avambraccio_sx'].restAngle || (Math.PI * 0.75);
+      const curForearmSX = getVectorAngle(pElScreenSX, pWrScreenSX);
+      const deltaForearmSX = curForearmSX - restForearmSX;
+      const lenArmSX = (partsData['braccio_sx'].length || 60) * scaleFactor;
+      const elSX = {
+        x: shSX.x + Math.cos(restArmSX + deltaArmSX) * lenArmSX,
+        y: shSX.y + Math.sin(restArmSX + deltaArmSX) * lenArmSX
+      };
+      drawPartRotated('avambraccio_sx', elSX, deltaForearmSX);
+
+      const shDX = {
+        x: neckPos.x + ((stickmanNodes.sh_r.x - stickmanNodes.neck.x) * imgW),
+        y: neckPos.y + ((stickmanNodes.sh_r.y - stickmanNodes.neck.y) * imgH)
+      };
+      const restArmDX = partsData['braccio_dx'].restAngle || (Math.PI * 0.25);
+      const curArmDX = getVectorAngle(pShScreenDX, pElScreenDX);
+      const deltaArmDX = curArmDX - restArmDX;
+      drawPartRotated('braccio_dx', shDX, deltaArmDX);
+
+      const restForearmDX = partsData['avambraccio_dx'].restAngle || (Math.PI * 0.25);
+      const curForearmDX = getVectorAngle(pElScreenDX, pWrScreenDX);
+      const deltaForearmDX = curForearmDX - restForearmDX;
+      const lenArmDX = (partsData['braccio_dx'].length || 60) * scaleFactor;
+      const elDX = {
+        x: shDX.x + Math.cos(restArmDX + deltaArmDX) * lenArmDX,
+        y: shDX.y + Math.sin(restArmDX + deltaArmDX) * lenArmDX
+      };
+      drawPartRotated('avambraccio_dx', elDX, deltaForearmDX);
+    }
+
+    requestAnimationFrame(render);
+
+    /* ==========================================================================
+       8. REGISTRAZIONE VIDEO CON SUPPORTO NATIVO MP4 & WEBM E BLOCCO SICUREZZA
+       ========================================================================== */
+    btnRecord.addEventListener('click', () => {
+      if (!isRecording) startRecording();
+      else stopRecording();
+    });
+
+    function startRecording() {
+      const dict = I18N_DICTIONARY[currentLang];
+      recordedChunks = [];
+      const canvasStream = mainCanvas.captureStream(30);
+      let combinedStream = canvasStream;
+      
+      if (audioContext && audioContext.state === 'running' && isMicActive && fxDestinationNode) {
+        const audioTracks = fxDestinationNode.stream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          combinedStream = new MediaStream([...canvasStream.getVideoTracks(), audioTracks[0]]);
+        }
+      }
+
+      const desiredFormat = videoFormatSelect.value;
+      let selectedMime = '';
+
+      if (desiredFormat === 'mp4') {
+        const mp4Candidates = [
+          'video/mp4;codecs=avc1,mp4a.40.2',
+          'video/mp4;codecs=avc1',
+          'video/mp4'
+        ];
+        selectedMime = mp4Candidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+      }
+
+      if (!selectedMime) {
+        const webmCandidates = [
+          'video/webm;codecs=vp9,opus',
+          'video/webm;codecs=vp8,opus',
+          'video/webm'
+        ];
+        selectedMime = webmCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+      }
+
+      try {
+        mediaRecorder = new MediaRecorder(combinedStream, selectedMime ? { mimeType: selectedMime } : undefined);
+      } catch (e) {
+        mediaRecorder = new MediaRecorder(combinedStream);
+      }
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const actualMime = mediaRecorder.mimeType || 'video/mp4';
+        const isMp4 = actualMime.includes('mp4') || desiredFormat === 'mp4';
+        const ext = isMp4 ? 'mp4' : 'webm';
+
+        const blob = new Blob(recordedChunks, { type: actualMime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `doodlepop_${new Date().toISOString().slice(0,10)}_${Date.now().toString().slice(-4)}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      };
+
+      mediaRecorder.start(1000);
+      isRecording = true;
+      btnRecord.innerText = dict.btnRecStop;
+      btnRecord.classList.remove('btn-danger');
+      btnRecord.classList.add('btn-success');
+      recBadge.style.display = 'flex';
+      recStartTime = Date.now();
+
+      // BLOCCO CONTROLLI DURANTE LA REGISTRAZIONE
+      btnToggleTracking.disabled = true;
+      langSelect.disabled = true;
+      lblBgUpload.classList.add('disabled');
+      lblCharUpload.classList.add('disabled');
+      videoFormatSelect.disabled = true;
+
+      updateInstructions();
+
+      recInterval = setInterval(() => {
+        const elapsedSec = Math.floor((Date.now() - recStartTime) / 1000);
+        const m = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+        const s = String(elapsedSec % 60).padStart(2, '0');
+        recTimer.innerText = `${m}:${s}`;
+      }, 500);
+    }
+
+    function stopRecording() {
+      const dict = I18N_DICTIONARY[currentLang];
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        clearInterval(recInterval);
+        btnRecord.innerText = dict.btnRecStart;
+        btnRecord.classList.remove('btn-success');
+        btnRecord.classList.add('btn-danger');
+        recBadge.style.display = 'none';
+
+        // SBLOCCO CONTROLLI DOPO IL SALVATAGGIO
+        btnToggleTracking.disabled = false;
+        langSelect.disabled = false;
+        lblBgUpload.classList.remove('disabled');
+        lblCharUpload.classList.remove('disabled');
+        videoFormatSelect.disabled = false;
+
+        updateInstructions();
+      }
+    }
+
+    charScaleSlider.addEventListener('input', (e) => {
+      document.getElementById('scaleVal').innerText = `${e.target.value}x`;
+    });
+    headSensSlider.addEventListener('input', (e) => {
+      document.getElementById('headSensVal').innerText = `${e.target.value}x`;
+    });
+
+    setLanguage('it');
+  </script>
+</body>
+</html>
